@@ -1,26 +1,37 @@
 #!/usr/bin/env bash
-
-# list of Conventional Commits types
-types=(
-# INJECT_TYPES
-)
+# FROM https://github.com/DanySK/gradle-pre-commit-git-hooks/blob/master/src/main/sh/org/danilopianini/gradle/git/hooks/conventional-commit-message.sh
+# Checks the commit message file against the conventional commit style
+# https://www.conventionalcommits.org/en/v1.0.0/
+#
+# The file is read into a variable in an escaped format which is easier to regex against
 
 # the commit message file is the only argument
 msg_file="$1"
 
-# join types with | to form regex ORs
-r_types="($(IFS='|'; echo "${types[*]}"))"
+# list of Conventional Commits types
+r_types="(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)"
 # optional (scope)
 r_scope="(\([[:alnum:] \/-]+\))?"
 # optional breaking change indicator and colon delimiter
 r_delim='!?:'
-# subject line, body, footer
-r_subject=" [[:alnum:]].+"
+# subject line
+r_subject=" [[:alnum:] ]+"
+# body, footer
+r_body='($|(\\n(\\n[[:alnum:] ]+)+))'
 # the full regex pattern
-pattern="^$r_types$r_scope$r_delim$r_subject$"
+pattern="^$r_types$r_scope$r_delim$r_subject$r_body"
+
+CONTENT=""
+while IFS="" read -r line || [ "$line" ] ; do
+	if [[ -z "$CONTENT" ]] ; then
+		CONTENT=$line
+	else
+		CONTENT=$CONTENT\\\\n$line
+	fi
+done < $msg_file
 
 # Check if commit is conventional commit
-if grep -Eq "$pattern" "$msg_file"; then
+if printf "$CONTENT" | grep -P "$pattern" ; then
     exit 0
 fi
 
